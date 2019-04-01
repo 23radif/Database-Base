@@ -87,16 +87,7 @@ CREATE VIEW view_max_employee_salary
 -- 1.2.3. Удалить одного сотрудника, у которого максимальная зарплата.
 ------------------------------------------------------------------
 
-CREATE VIEW view_remove_employee_max_salary --не работает
-  AS DELETE FROM employees
-  WHERE
-      employees.emp_no = (SELECT
-          salaries.emp_no
-      FROM
-          salaries
-      WHERE salaries.to_date >= CURDATE()
-      ORDER BY salaries.salary DESC
-      LIMIT 1);
+-- VIEW на DELETE не делается, только на выборки.
     
 -------------------------------------------------------
 -- 1.2.4. Посчитать количество сотрудников во всех отделах.
@@ -207,16 +198,17 @@ CREATE VIEW view_sum_dif_10_max_salary_and_10_min_salary
 --2.0 Создать функцию, которая найдет менеджера по имени и фамилии.
 ----------------------------------------------------------------------------
 
-CREATE FUNCTION func_emp_no (first_n VARCHAR(20), last_n VARCHAR(20))
-  RETURNS VARCHAR(10) DETERMINISTIC
-  RETURN (
-    SELECT employees.emp_no FROM employees
-      JOIN salaries ON employees.emp_no = salaries.emp_no
-        WHERE employees.first_name = first_n AND employees.last_name = last_n AND salaries.to_date >= CURDATE()
-        LIMIT 1
-  );
+CREATE FUNCTION return_full_name(first VARCHAR(14), last VARCHAR(16))
+    RETURNS INT 
+    READS SQL DATA
+RETURN (
+    SELECT dept_manager.emp_no
+    FROM dept_manager
+             JOIN employees e on dept_manager.emp_no = e.emp_no
+    WHERE first_name = first
+      AND last_name = last);
 
-  SELECT func_emp_no ('Bezalel', 'Simmel');
+SELECT return_full_name("Margareta", "Markovitch");
 
 
 ----------------------------------------------------------------------------
@@ -224,12 +216,13 @@ CREATE FUNCTION func_emp_no (first_n VARCHAR(20), last_n VARCHAR(20))
 -- занося запись об этом в таблицу salary.
 ----------------------------------------------------------------------------
 
-CREATE TRIGGER new_employees_salary_bonus
-  AFTER INSERT
-  ON employees
-  FOR EACH ROW
-  INSERT INTO salaries VALUES (NEW.emp_no, 5000, CURDATE(), '9999-01-01');
-
-INSERT INTO employees (emp_no, birth_date, first_name, last_name, gender, hire_date)
-  VALUES (3, CURDATE(), 'as', 'as', 'F', CURDATE());
-
+delimiter //
+CREATE TRIGGER insert_bonus
+    AFTER INSERT
+    ON employees
+    FOR EACH ROW
+    BEGIN
+        INSERT INTO salaries (emp_no, salary, from_date, to_date)
+        VALUES (NEW.emp_no, 100, CURDATE(), '2019-03-31');
+    END//
+delimiter ;
