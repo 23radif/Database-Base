@@ -76,9 +76,31 @@ HAVING emp_avg_salary > 1.2 * (SELECT AVG(salary) FROM employees.salaries);
 -- Определить способы улучшения (если необходимы и возможны).
 -- Для визуального анализа используйте графическое представление в Workbench.
 
---1.
+--3.1.
 ALTER TABLE dept_emp ADD INDEX (to_date); --индексирование данного столбца позволяет значительно ускорить запрос, так как при выборке к нему происходит обращение
 
---2.
+--3.2.
 ALTER TABLE employees ADD INDEX (emp_no); --индексирование данного столбца так же ускоряет запрос, но возможно ещё что-то можно применить для оптимизации, 
 --так как сохраняется высокая нагрузка, возможно позже гляну, сейчас нужно отойти...
+
+-- **************************************************************
+--3.2 пример позволяющий ускорить запрос за счёт изменения самого запроса
+-- А вот это самый тяжелый запрос, в котором не используются ключи и мы выбираем большое кол-во данных из-за того, что в операторе HAVING для каждого сравнения делается отдельный запрос к "employees.salaries" с подсчетом результатов.
+-- И это больше всего в данной ситуации нагружает нашу БД.
+-- Чтобы решить проблему можно переписать запрос по-другому:
+EXPLAIN
+SELECT *
+  FROM (
+    SELECT
+      salaries.emp_no,
+      CONCAT(employees.first_name, ' ', employees.last_name) AS full_name,
+      AVG(salary) AS emp_avg_salary
+    FROM salaries
+    INNER JOIN employees
+      ON salaries.emp_no = employees.emp_no
+    INNER JOIN dept_emp
+      ON salaries.emp_no = dept_emp.emp_no
+    WHERE dept_emp.to_date >= CURDATE()
+    GROUP BY emp_no
+  ) AS tbl
+  WHERE emp_avg_salary > 1.2 * (SELECT AVG(salary) FROM employees.salaries);
